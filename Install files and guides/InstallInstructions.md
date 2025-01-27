@@ -18,6 +18,7 @@ sudo apt-get install python3-pip
 ```
 
 4. If using Bookworm, change python version to 3.9
+
 4.a Install dependinces (this may take a while)
 ```
 sudo apt-get install -y build-essential tk-dev libncurses5-dev libncursesw5-dev libreadline6-dev libdb5.3-dev libgdbm-dev libsqlite3-dev libssl-dev libbz2-dev libexpat1-dev liblzma-dev zlib1g-dev libffi-dev
@@ -43,6 +44,7 @@ rm Python-3.9.0.tar.xz
 ```
 
 5. Setup folder for file management:
+
 5.a Create ANDRRModule folder
 ```
 cd ANDRRModule
@@ -60,6 +62,7 @@ source ANDRRModuleEnv/bin/activate
 ```
 
 7. Install everything else:
+
 Download the pi_requirements folder and move it to the ANDRRModule folder, then run the following
 ```
 bash pi_requirments.sh
@@ -90,6 +93,7 @@ At the bottom of the file, add “lxterminal -e bash <path to sh script>”
 
 
 9. Setup analog output:
+
 In config.txt look for:
 ```
 # uncomment for composite PAL
@@ -103,4 +107,5 @@ enable_tvout=1
 ```
 
 10. Adjust desktop size to fit monitor
+
 In the same config.txt file as step 9, adjust the overscan values. For a small FPV monitor, try starting with 16 for each side
