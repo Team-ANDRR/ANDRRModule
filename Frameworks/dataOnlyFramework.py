@@ -14,7 +14,6 @@ import detector
 from multiprocessing import Process,Queue
 from pymavlink import mavutil
 
-
 class ANDRRFramework:
     '''Framework for displaying CV detections over RCA'''
     def __init__(self):
@@ -22,7 +21,7 @@ class ANDRRFramework:
         self.newFolder=False #If true, a new folder will be created to save images and image data to
         self.DEBUG=True #If true, the display window isn't full screen to help with reading the terminal
         self.addImageLabel=True #If true, the program will add a label with ID and timestamp data to the bottom of all images
-        self.saveImage=True #If true, processed images will be saved to the pi
+        self.saveImage=False #If true, processed images will be saved to the pi
         self.saveData=True #If true, data from the detection program will be saved to a csv file
         self.showImage=True #If true, images will be displayed on screen
         self.imW=800 #Image resolution width
@@ -66,11 +65,12 @@ class ANDRRFramework:
             self.serIn = mavutil.mavlink_connection(self.serIn, baud=921600) # Adjust the port and baud rate if necessary
             self.serIn.wait_heartbeat()
             print("CONNECTED TO MAVLINK")
-            self.serIn.mav.request_data_stream_send(self.serIn.target_system, self.serIn.target_component, mavutil.mavlink.MAV_DATA_STREAM_ALL, 10, 1) # Request all data streams at 10Hz
+            self.serIn.mav.request_data_stream_send(self.serIn.target_system, self.serIn.target_component, mavutil.mavlink.MAV_DATA_STREAM_ALL, 5, 1) # Request all data streams at 5Hz
         except:
             self.serIn=None
             print("ERROR: FAILED TO CONNECT TO MAVLINK")
         pass
+
 
     def __createFolder(self): #Determines what folders exist and creates a new one for the flight, updates folderName
         i=0
@@ -97,7 +97,6 @@ class ANDRRFramework:
                 self.serOut.write(bytes(sendString, 'utf-8'))
             if self.serIn!=None:
                 msg = self.serIn.recv_msg()
-                print(msg)
                 if msg!=None:
                     if msg.get_type()=='GLOBAL_POSITION_INT':
                         msg.lat=msg.lat/1e7
@@ -113,16 +112,10 @@ class ANDRRFramework:
         ret = cap.set(3,self.imW)
         ret = cap.set(4,self.imH)
 
-        txtfile=self.folderName+"runtimeData.txt"
-        with open(txtfile, 'w',newline='') as f:
-            f.write('0\n')
-
         #Create a data boarder
         labelinit = np.zeros((30,self.imW,3), np.uint8)
         labelinit[3:,:]=(255,255,255)
         while True:
-            tic1=time.time()
-
             ret, image=cap.read()
 
             #Grab time for timestamp later
@@ -131,82 +124,30 @@ class ANDRRFramework:
             #Run the dector program, and save the resulting image and data
             posIm,frame,cvData = self.detector.detect(image) #Run the image through the detector program
 
+            if self.serIn!=None and not dataInQueue.empty():
+                serData=dataInQueue.get()
+            else:
+                serData=None
 
-            #If adding a data label, create a small image to be added to the bottom
-            if self.addImageLabel:
-
-        
-                    
-                # Create the ID string
-                IDtext= "ID: " + str(ID)    
-
-                # Create the timestamp string
-                captureTime=round(imTic)
-                seconds=captureTime%60
-                minutes=int((captureTime-seconds)/60)
-                timeStamp = "Time: " + str(minutes) + ":" + str(seconds).zfill(2)
-
-                if self.serIn!=None and not dataInQueue.empty():
-                    GPS=dataInQueue.get()
-                    GPStext="GPS: " + str(GPS.lat) + "," + str(GPS.lon)
-                else:
-                    GPStext="GPS: No connection"
-
-                #Create blank label
-                label=labelinit.copy()
-
-                # Add text to the boarder
-                cv2.putText(label, timeStamp, (70,20), self.font, self.fontScale, self.color, self.thickness, cv2.LINE_AA)
-                cv2.putText(label, IDtext, (420,20), self.font, self.fontScale, self.color, self.thickness, cv2.LINE_AA)
-                cv2.putText(label, GPStext, (220,20), self.font, self.fontScale, self.color, self.thickness, cv2.LINE_AA)
-
-                #Add the boarder to the image
-                frame=cv2.vconcat([frame,label])
-            
-            ID+=1        
             dataOutQueue.put(cvData)
-            imageOutQueue.put([frame,posIm,imTic,cvData])
+            if self.saveData:
+                imageOutQueue.put([posIm,imTic,cvData,serData])
 
-            #Display image
-            if self.showImage:
-                tic=time.time()
-                #If not using debug mode, set image to full screen 
-                if not ANDRR.DEBUG:
-                    cv2.setWindowProperty('radioImage', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-                #Show image
-                cv2.imshow('radioImage', frame)
-                if cv2.waitKey(1) == ord('q'):
-                    break 
-            #loopFPS=1/(time.time()-tic1)
-            #txtfile=self.folderName+"runtimeData.txt"
-            #with open(txtfile, 'a',newline='') as f:
-                #f.write(str(loopFPS)+'\n')
-
-            #if ID>200:
-                #quit()
 
     def storeImage(self, queue):
         ID=0
-        while True:
-            
-            processed=queue.get()
-            frame=processed[0]
-            #If saving the image file, write it to the current folder
-            if self.saveImage:
-                # Name the image with a unique id
-                imagePath=self.folderName + str(ID) + ".jpg"
-                path_input = os.path.join(sys.path[0], imagePath)
-                # Save the final image
-                cv2.imwrite(path_input,frame)
-
-            #If saving data, write it to a csv
-            if self.saveData:
-                #Record image data to a text file
-                txtfile=self.folderName+"imageData.txt"
-                with open(txtfile, 'a',newline='') as f:
-                    f.write("{},{},{},{}\n".format(ID,processed[1],processed[2],processed[3]))
-
-            ID+=1
+        if self.saveData:
+            while True:
+                
+                processed=queue.get()
+                #If saving data, write it to a csv
+                if self.saveData:
+                    #Record image data to a text file
+                    txtfile=self.folderName+"imageData.txt"
+                    with open(txtfile, 'a') as f:
+                        f.write("{},{},{},{}".format(ID,processed[0],processed[1],processed[2]))
+    
+                ID+=1
 
 
 
@@ -216,7 +157,6 @@ time.sleep(1)
 
 #Setup display window
 cv2.namedWindow('radioImage', cv2.WINDOW_NORMAL)
-
 
 dataOutQueue=Queue()
 dataInQueue=Queue()
@@ -230,5 +170,3 @@ saveImageProcess.start()
 
 
 ANDRR.processImage(dataOutQueue,dataInQueue,imageOutQueue)
-
-
