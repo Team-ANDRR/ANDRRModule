@@ -159,5 +159,7 @@ class CVProcessor:
             for j in range(len(processedCVData[i])):
                 dataString+=str(processedCVData[i][j])+','
     
-        return detected, frame, dataString
+        cvData=[detected,dataString]
+
+        return frame, cvData
 

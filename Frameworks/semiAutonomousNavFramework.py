@@ -29,7 +29,7 @@ class ANDRRFramework:
         self.imH=450 #Image resolution height
         self.serOut='/dev/ttyACM2' #Serial port for outputting processed data
         self.serIn='/dev/ttyACM1' #Serial port for MAVSDK connection
-
+        self.overwriteData=True
         #THE FOLLOWING DO NOT NEED TO BE EDITED
 
         self.detector=detector.CVProcessor(self.imW,self.imH)
@@ -70,6 +70,17 @@ class ANDRRFramework:
         except:
             self.serIn=None
             print("ERROR: FAILED TO CONNECT TO MAVLINK")
+
+
+        if self.saveData:
+            if self.overwriteData:
+                writeMethod='w'
+            else:
+                writeMethod='a'
+            txtfile=self.folderName+"imageData.txt"
+            with open(txtfile, writeMethod) as f:
+                f.write("ID,Time,GPS,Detection,CVData\n")
+
         pass
 
     def __createFolder(self): #Determines what folders exist and creates a new one for the flight, updates folderName
@@ -97,7 +108,6 @@ class ANDRRFramework:
                 self.serOut.write(bytes(sendString, 'utf-8'))
             if self.serIn!=None:
                 msg = self.serIn.recv_msg()
-                print(msg)
                 if msg!=None:
                     if msg.get_type()=='GLOBAL_POSITION_INT':
                         msg.lat=msg.lat/1e7
@@ -129,14 +139,12 @@ class ANDRRFramework:
             imTic=time.time()-self.startTic
 
             #Run the dector program, and save the resulting image and data
-            posIm,frame,cvData = self.detector.detect(image) #Run the image through the detector program
+            frame,cvData = self.detector.detect(image) #Run the image through the detector program
 
 
             #If adding a data label, create a small image to be added to the bottom
             if self.addImageLabel:
 
-        
-                    
                 # Create the ID string
                 IDtext= "ID: " + str(ID)    
 
@@ -163,9 +171,12 @@ class ANDRRFramework:
                 #Add the boarder to the image
                 frame=cv2.vconcat([frame,label])
             
-            ID+=1        
+            cvData.insert(0,GPS)
+            cvData.insert(0,imTic)
+            cvData.insert(0,ID)
             dataOutQueue.put(cvData)
-            imageOutQueue.put([frame,posIm,imTic,cvData])
+            imageOutQueue.put([frame,cvData])
+            ID+=1      
 
             #Display image
             if self.showImage:
@@ -186,11 +197,11 @@ class ANDRRFramework:
                 #quit()
 
     def storeImage(self, queue):
-        ID=0
         while True:
             
-            processed=queue.get()
-            frame=processed[0]
+            frame,data=queue.get()
+            ID,imTic,GPS,imPos,cvData=data
+
             #If saving the image file, write it to the current folder
             if self.saveImage:
                 # Name the image with a unique id
@@ -203,8 +214,8 @@ class ANDRRFramework:
             if self.saveData:
                 #Record image data to a text file
                 txtfile=self.folderName+"imageData.txt"
-                with open(txtfile, 'a',newline='') as f:
-                    f.write("{},{},{},{}\n".format(ID,processed[1],processed[2],processed[3]))
+                with open(txtfile, 'a') as f:
+                    f.write("{},{},{},{},{}\n".format(ID,imTic,GPS,imPos,cvData))
 
             ID+=1
 

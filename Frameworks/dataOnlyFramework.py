@@ -28,6 +28,7 @@ class ANDRRFramework:
         self.imH=450 #Image resolution height
         self.serOut='/dev/ttyACM2' #Serial port for outputting processed data
         self.serIn='/dev/ttyACM1' #Serial port for MAVSDK connection
+        self.overwriteData=True
 
         #THE FOLLOWING DO NOT NEED TO BE EDITED
 
@@ -69,6 +70,17 @@ class ANDRRFramework:
         except:
             self.serIn=None
             print("ERROR: FAILED TO CONNECT TO MAVLINK")
+
+
+        if self.saveData:
+            if self.overwriteData:
+                writeMethod='w'
+            else:
+                writeMethod='a'
+            txtfile=self.folderName+"imageData.txt"
+            with open(txtfile, writeMethod) as f:
+                f.write("Time,SerialData,CVData\n")
+
         pass
 
 
@@ -122,32 +134,30 @@ class ANDRRFramework:
             imTic=time.time()-self.startTic
 
             #Run the dector program, and save the resulting image and data
-            posIm,frame,cvData = self.detector.detect(image) #Run the image through the detector program
+            frame,cvData = self.detector.detect(image) #Run the image through the detector program
 
             if self.serIn!=None and not dataInQueue.empty():
                 serData=dataInQueue.get()
             else:
                 serData=None
 
+
             dataOutQueue.put(cvData)
             if self.saveData:
-                imageOutQueue.put([posIm,imTic,cvData,serData])
+                imageOutQueue.put([imTic,serData,cvData])
 
 
     def storeImage(self, queue):
-        ID=0
         if self.saveData:
             while True:
-                
-                processed=queue.get()
+                imTic,serData,cvData=queue.get()
                 #If saving data, write it to a csv
                 if self.saveData:
                     #Record image data to a text file
                     txtfile=self.folderName+"imageData.txt"
                     with open(txtfile, 'a') as f:
-                        f.write("{},{},{},{}".format(ID,processed[0],processed[1],processed[2]))
+                        f.write("{},{},{}\n".format(imTic,serData,cvData))
     
-                ID+=1
 
 
 

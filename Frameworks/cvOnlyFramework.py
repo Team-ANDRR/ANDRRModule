@@ -34,7 +34,7 @@ class ANDRRFramework:
             ret, image=cap.read()
             if ret:
                 #Run the dector program, and save the resulting image and data
-                posIm,frame,cvData = self.detector.detect(image) #Run the image through the detector program
+                frame,cvData = self.detector.detect(image) #Run the image through the detector program
 
                 #Display image
                 #If not using debug mode, set image to full screen 
