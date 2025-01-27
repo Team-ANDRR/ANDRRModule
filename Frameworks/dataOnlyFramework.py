@@ -101,7 +101,7 @@ class ANDRRFramework:
                 if msg!=None:
                     if msg.get_type()=='GLOBAL_POSITION_INT':
                         msg.lat=msg.lat/1e7
-                        msg.lon=msg.lon=1e7
+                        msg.lon=msg.lon/1e7
                         queueOut.put(msg)
         pass
 
