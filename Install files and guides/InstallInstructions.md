@@ -102,4 +102,5 @@ sdtv_aspect=1
 enable_tvout=1
 ```
 
-
+10. Adjust desktop size to fit monitor
+In the same config.txt file as step 9, adjust the overscan values. For a small FPV monitor, try starting with 16 for each side
