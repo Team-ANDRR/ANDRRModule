@@ -1,4 +1,4 @@
-The following code is intended for use on 64 bit Bullseye or Bookworm Rasbian images. Version dependant commands will be noted as such
+The following code is intended for use on 64 bit LITE Bullseye or Bookworm Rasbian images. Version dependant commands will be noted as such
 
 1. Update system:
 ```
