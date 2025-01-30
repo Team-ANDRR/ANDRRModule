@@ -11,26 +11,40 @@ import importlib.util
 class imGet:
     def __init__(self, foldername,viewMode):
         self.foldername=foldername
-        self.dispID=[0,0,0,0,0,0] #Holds the image being shown. The first 2 entries are a position in positive IDs, the third determines if cached detections are being shown, the forth determines if the screen is blank or not, the fifth determines if the last image should be held or not, the sixth is used when showing all images, and simply holds the ID
-        self.updateTic=time.time() #Determines if the program needs to wait before enacting a stick command when moving through cached images to make control easier
-        self.setBlankTic=time.time() #Used with dispID[3] to determine how long the screen has been blank
-        self.setUpdateTic=time.time() #Used to determine when the program should move to the next image in a set
-        self.timeOutTic=time.time() #Used to determine when the program should return to displaying live detections following no inputs
-        self.updateTime=.5#Used with updateTic
-        self.setBlankTime=.1 #Used with setBlankTic
-        self.setUpdateTime=.75 #Used with setUpdateTic
-        self.setScrubbing=1
-        self.imageScrubbing=0.1
-        self.timeOutTime=6 #Used with timeOutTic
-        self.passiveMode=viewMode
+        self.dispID=[0,0,1,0,0,0] #Holds the image being shown. The first 2 entries are a position in positive IDs, the third determines if cached detections are being shown, the forth determines if the screen is blank or not, the fifth determines if the last image should be held or not, the sixth is used when showing all images, and simply holds the ID
+        
+        #Determines if the program needs to wait before enacting a stick command when moving through cached images to make control easier
+        self.updateTime=.5
+        self.updateTic=time.time() 
+        
+        #Used with dispID[3] to determine how long the screen should be blank for
+        self.setBlankTime=.5
+        self.setBlankTic=time.time()
+
+        #Used to determine when the program should move to the next image in a set
+        self.setUpdateTime=1
+        self.setUpdateTic=time.time()
+
+        #Used to determine when the program should return to the passive mode following no inputs
+        self.timeOutTime=6        
+        self.timeOutTic=time.time() 
+
+        self.setScrubbing=1 #Ramp rate for how many sets the system scrubs through each second with manual control
+        self.imageScrubbing=0.1 #Ramp rate for how many images the system scrubs through each second with manual control
+
+        #Used to determine how long a input has been held
         self.holdScrubTic=time.time()
-        self.prevScrub=0 #Used to store previous roll value
-        self.modeOverride=True
-        self.loopNum=2 #For use with set mode, determines how many times a set loops before moving on the the next
-        self.loopCount=0 #Used with loop count
+        self.prevScrub=0
+
+        self.loopNum=3 #For use with set mode, determines how many times a set loops before moving on the the next
+        self.loopCount=0 #Used with loopNum
+
+        #Define user commands
         self.scrubControl=0
         self.holdControl=0
 
+        self.passiveMode=viewMode
+        self.modeOverride=True
         if self.passiveMode[0]=='*': #Determine if mode override is used
             self.passiveMode=self.passiveMode[1:] 
             self.modeOverride=False
@@ -41,21 +55,21 @@ class imGet:
 
     def getImage(self, data, IDs):
         self.cacheList=IDs
-        self.ID=self.cacheList[0]
+        self.ID=self.cacheList.pop(0)
         self.telemetryData=data
 
         if self.telemetryData!=None:
             self.updateControl()
 
         #Check if there are no images to sort through
-        if len(self.cacheList)<2:
+        if self.passiveMode=="live" and self.modeOverride:
             return None
-
-        if self.telemetryData==None or self.modeOverride:
+        elif len(self.cacheList)<1:
+            self.dispID[5]=self.ID
+        elif self.telemetryData==None or self.modeOverride:
             self.getID_passive() #Otherwise compute the new ID
-
         else:
-            self.getID_active() 
+            self.getID_active()
 
        
         imFilePath=None
@@ -73,6 +87,8 @@ class imGet:
             return self.foldername+imFilePath
         else:
             return None
+
+        pass
 
 
     def updateControl(self):
@@ -106,13 +122,23 @@ class imGet:
         else:
             self.controlMode=0
 
+        if self.scrubControl!=0 or seld.holdControl!=0: #Reset timeout clock if theres a input
+            self.timeOutTic=time.time()
+
+        if (time.time()-self.timeOutTic)>self.timeOutTime: #If the timout clock runs out, set telemetry data to none to kick the system into passive mode
+            self.telemetryData=None
+
+        pass
+
 
     def getID_passive(self):
 
-        if self.passiveMode=="live":
-            return None
+        if self.passiveMode=="last":
+            #For showing the last image with label
+            self.dispID[5]=self.ID
+            pass
 
-        if self.passiveMode=="recentSaved":
+        if self.passiveMode=="recentDetected":
             #For showing the most recent positive image
             self.dispID[2]=1 #Set to display cached images
             self.dispID[4]=0 #Remove any hold
@@ -132,7 +158,7 @@ class imGet:
 
             if (time.time()-self.setUpdateTic)>self.setUpdateTime: #If time to move to the next image in the set
                 self.dispID[1]+=1
-                self.updateTic=time.time()
+                self.setupdateTic=time.time()
 
                 #If you have exceeded the number of images in a set, loop back to the first image
                 if self.dispID[1]>len(self.cacheList[self.dispID[0]])-1:
@@ -140,18 +166,18 @@ class imGet:
                     self.loopCount+=1
 
                     #If the set has looped for the proper number, move to the next set
-                    if self.loopCount>self.loopNum:
+                    if self.loopCount>=self.loopNum:
                         self.loopCount=0
                         self.dispID[0]+=1
+
+                        #Call for blank and set time
+                        self.dispID[3]=1
+                        self.setBlankTic = time.time()
 
 
                     #If you have exceeded the number of sets loop back to the first set
                     if self.dispID[0]>len(self.cacheList)-1:
                         self.dispID[0]=0
-
-                    #Call for blank and set time
-                    self.dispID[3]=1
-                    self.setBlankTic = time.time()
 
         pass
 
@@ -224,9 +250,8 @@ class imGet:
                         self.dispID=[len(self.cacheList)-1,0,1,1,0,0] #Display the last detection
                         self.setBlankTic = time.time() #Call for blank and set time
 
-                    self.updateTic=time.time() #Update the update and timeout tics
+                    self.updateTic=time.time() #Update the update tic
                     self.setUpdateTic=time.time()
-                    self.timeOutTic=time.time()
                     pass
 
                 elif self.scrubControl==1:#If stick is right
@@ -245,13 +270,11 @@ class imGet:
                         self.dispID=[0,0,1,1,0,0] #Display the first detection
                         self.setBlankTic = time.time() #Call for blank and set time
 
-                    self.updateTic=time.time() #Update the update and timeout tics
+                    self.updateTic=time.time() #Update the update tic
                     self.setUpdateTic=time.time()
-                    self.timeOutTic=time.time()
                     pass
 
             if self.holdControl==-1 and self.scrubControl==0: #If stick is only down
-                self.timeOutTic=time.time() #Update the timeout tic
                 self.setUpdateTic=time.time()
                 self.dispID[4]=1
                 pass #Keep the current id
@@ -262,10 +285,7 @@ class imGet:
                 pass
 
             elif self.dispID[2]: # If already in the cache and no stick input
-                if (time.time()-self.timeOutTic)>self.timeOutTime: #If timed out
-                    self.dispID=[0,0,0,1,0,0] #reset to live detections
-                    self.setBlankTic = time.time() #Call for blank and set time
-                elif (time.time()-self.setUpdateTic)>self.setUpdateTime: #If time to move to the next image in the set
+                if (time.time()-self.setUpdateTic)>self.setUpdateTime: #If time to move to the next image in the set
                     self.dispID[1]+=1
                     if self.dispID[1]>len(self.cacheList[self.dispID[0]])-1:
                         self.dispID[1]=0

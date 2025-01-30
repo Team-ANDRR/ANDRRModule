@@ -18,40 +18,43 @@ class ANDRRFramework:
     '''Framework for displaying CV detections over RCA'''
     def __init__(self):
         
+        self.CVModel='edgetpu.tflite' #File name of cv model
+        self.useTPU=True #Set to true if using ML accelerator
         self.newFolder=False #If true, a new folder will be created to save images and image data to
         self.DEBUG=True #If true, the display window isn't full screen to help with reading the terminal
         self.addImageLabel=True #If true, the program will add a label with ID and timestamp data to the bottom of all images
         self.showImage=True #If true, processed images will be saved to the pi
         self.saveData=True #If true, data from the detection program will be saved to a csv file
         self.saveImage=True #self.showImage #If true, images will be displayed on screen
-        self.imW=640 #Image resolution width
-        self.imH=480 #Image resolution height
-        self.serOut='/dev/ttyACM2' #Serial port for outputting processed data
-        self.serIn='/dev/ttyACM1' #Serial port for MAVSDK connection
+        self.imW=800 #Display image resolution width
+        self.imH=450 #Display image resolution height
+        self.CamW=800 #Camera resolution width
+        self.CamH=600 #Camera resolution height
+        self.serOut='/dev/ttyACM1' #Serial port for outputting processed data
+        self.serIn='/dev/ttyACM0' #Serial port for MAVSDK connection
         self.dataOut=True
         self.overwriteData=False
-        self.viewMode="live" # * at the front indicates this is a override for the active mode
-
+        self.viewMode="last" # * at the front indicates this is a override for the active mode
+        self.GPSTimeOut=5 #How many seconds need to pass without GPS before readings should be ignored 
+        self.cameraIndex=1 #Set to 0 for Pi camera, 1 for USB camera
         #THE FOLLOWING DO NOT NEED TO BE EDITED
 
-        self.detector=detector.CVProcessor(self.imW,self.imH)
+        self.cap=cv2.VideoCapture(self.cameraIndex)
+        ret = self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+        ret = self.cap.set(3,self.CamW)
+        ret = self.cap.set(4,self.CamH)
+
+        self.detector=detector.CVProcessor(self.CVModel,self.useTPU,self.imW,self.imH)
 
         self.ID=1
         self.cacheList=[0] #Array of positive detection sets
-
-        self.folderName="radioImages0/"
+        self.GPSTic=time.time() #Time since last GPS update
+        self.folderName="radioImages0/" #Stores what folder data is saved to if new folder is not made
 
         self.font=cv2.FONT_HERSHEY_SIMPLEX
         self.fontScale=0.5
         self.color=(0,0,0)
         self.thickness=1
-
-        self.cap=cv2.VideoCapture(0)
-        ret = self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
-        ret = self.cap.set(3,self.imW)
-        ret = self.cap.set(4,self.imH)
-
-        self.detector=detector.CVProcessor(self.imW,self.imH)
 
         self.startTic=time.time()
 
@@ -99,6 +102,8 @@ class ANDRRFramework:
             with open(txtfile, writeMethod) as f:
                 f.write("ID,Time,GPS,Detection,CVData\n")
 
+        print('Setup Complete!')
+
         pass
 
 
@@ -118,10 +123,8 @@ class ANDRRFramework:
         loopTime=0
         while True:
             
-            dataOut=''
-            if not queueIn.empty():
-                dataOut=str(dataOutQueue.get())+'\n'
-            sendString=bytes(dataOut, 'utf-8')
+            dataOut=str(dataOutQueue.get())
+            sendString=bytes(dataOut+'\n', 'utf-8')
             
             #Send over serial
             if self.serOut!=None and len(sendString)>0 and self.dataOut:
@@ -143,6 +146,7 @@ class ANDRRFramework:
     def processImage(self, processOutQueue, dataOutQueue, GPSQueue): #Run an image through the CV program, add the relevant data, save the image
 
         ret, image=self.cap.read()
+        image=cv2.resize(image,(self.imW,self.imH))
 
         #Grab time for timestamp later
         imTic=time.time()-self.startTic
@@ -167,6 +171,7 @@ class ANDRRFramework:
         #Create a data boarder
         labelinit = np.zeros((30,self.imW,3), np.uint8)
         labelinit[3:,:]=(255,255,255)
+        GPStext="GPS: No connection"
 
         while True:
             frame,data=processOutQueue.get()
@@ -183,18 +188,20 @@ class ANDRRFramework:
                 minutes=int((captureTime-seconds)/60)
                 timeStamp = "Time: " + str(minutes) + ":" + str(seconds).zfill(2)
 
-                if GPS !=None:
+                if GPS!=None:
+                    self.GPSTic=time.time()
                     GPStext="GPS: " + str(GPS.lat) + "," + str(GPS.lon)
                 else:
-                    GPStext="GPS: No connection"
+                    if (time.time()-self.GPSTic)>self.GPSTimeOut:
+                        GPStext="GPS: No connection"
 
                 #Create blank label
                 label=labelinit.copy()
 
                 # Add text to the boarder
                 cv2.putText(label, timeStamp, (70,20), self.font, self.fontScale, self.color, self.thickness, cv2.LINE_AA)
-                cv2.putText(label, IDtext, (420,20), self.font, self.fontScale, self.color, self.thickness, cv2.LINE_AA)
-                cv2.putText(label, GPStext, (220,20), self.font, self.fontScale, self.color, self.thickness, cv2.LINE_AA)
+                cv2.putText(label, IDtext, (self.imW-180,20), self.font, self.fontScale, self.color, self.thickness, cv2.LINE_AA)
+                cv2.putText(label, GPStext, (int(self.imW*.25),20), self.font, self.fontScale, self.color, self.thickness, cv2.LINE_AA)
 
                 #Add the boarder to the image
                 frame=cv2.vconcat([frame,label])
@@ -278,10 +285,8 @@ imagePostProcess.start()
 displayProcess.start()
 
 
-ID=0
 #Ending the program is done w/ ctrl+c on the pi or power off
 while True:
-    tic1=time.time()
 
     #Process an image
     recentImage=ANDRR.processImage(processOutQueue, dataOutQueue, GPSQueue)
@@ -299,9 +304,6 @@ while True:
             cv2.imshow('radioImage',selectedImage)
             if cv2.waitKey(1) == ord('q'):
                 break 
-
-
-    
 
 # Clean up
 cv2.destroyAllWindows()

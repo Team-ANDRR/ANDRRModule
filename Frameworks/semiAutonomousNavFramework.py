@@ -18,30 +18,41 @@ from pymavlink import mavutil
 class ANDRRFramework:
     '''Framework for displaying CV detections over RCA'''
     def __init__(self):
-        
+ 
+        self.CVModel='edgetpu.tflite' #File name of cv model
+        self.useTPU=True #Set to true if using ML accelerator
         self.newFolder=False #If true, a new folder will be created to save images and image data to
         self.DEBUG=True #If true, the display window isn't full screen to help with reading the terminal
         self.addImageLabel=True #If true, the program will add a label with ID and timestamp data to the bottom of all images
         self.saveImage=True #If true, processed images will be saved to the pi
         self.saveData=True #If true, data from the detection program will be saved to a csv file
         self.showImage=True #If true, images will be displayed on screen
-        self.imW=800 #Image resolution width
-        self.imH=450 #Image resolution height
-        self.serOut='/dev/ttyACM2' #Serial port for outputting processed data
-        self.serIn='/dev/ttyACM1' #Serial port for MAVSDK connection
+        self.imW=800 #Display image resolution width
+        self.imH=450 #Display image resolution height
+        self.CamW=800 #Camera resolution width
+        self.CamH=600 #Camera resolution height
+        self.serOut='/dev/ttyACM1' #Serial port for outputting processed data
+        self.serIn='/dev/ttyACM0' #Serial port for MAVSDK connection
         self.overwriteData=True
+        self.GPSTimeOut=5 #How many seconds need to pass without GPS before readings should be ignored 
+        self.cameraIndex=1
         #THE FOLLOWING DO NOT NEED TO BE EDITED
 
-        self.detector=detector.CVProcessor(self.imW,self.imH)
+        self.cap=cv2.VideoCapture(self.cameraIndex, cv2.CAP_V4L2)
+        ret = self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+        ret = self.cap.set(3,self.CamW)
+        ret = self.cap.set(4,self.CamH)
+
+        self.detector=detector.CVProcessor(self.CVModel,self.useTPU,self.imW,self.imH)
 
         #Text parameters for the data label
         self.font = cv2.FONT_HERSHEY_SIMPLEX
         self.fontScale = 0.5
         self.color = (0, 0, 0)
         self.thickness = 1
-
+        self.GPSTic=time.time() #Time since last GPS update
         self.ID=1 #Used to assign a unique identifier to each image saved
-        self.folderName="radioImages0/" #Stores what folder data is saved to
+        self.folderName="radioImages0/" #Stores what folder data is saved to if new folder is not made
 
         self.startTic=time.time()
 
@@ -81,6 +92,8 @@ class ANDRRFramework:
             with open(txtfile, writeMethod) as f:
                 f.write("ID,Time,GPS,Detection,CVData\n")
 
+        print('Setup Complete!')
+
         pass
 
     def __createFolder(self): #Determines what folders exist and creates a new one for the flight, updates folderName
@@ -116,31 +129,21 @@ class ANDRRFramework:
         pass
 
     def processImage(self, dataOutQueue, dataInQueue, imageOutQueue): #Run an image through the CV program, add the relevant data, save the image
-        ID=0
-        loopFPS=0
-        cap=cv2.VideoCapture(0)
-        ret = cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
-        ret = cap.set(3,self.imW)
-        ret = cap.set(4,self.imH)
-
-        txtfile=self.folderName+"runtimeData.txt"
-        with open(txtfile, 'w',newline='') as f:
-            f.write('0\n')
+        ID=self.ID
 
         #Create a data boarder
         labelinit = np.zeros((30,self.imW,3), np.uint8)
         labelinit[3:,:]=(255,255,255)
         while True:
-            tic1=time.time()
 
-            ret, image=cap.read()
+            ret, image=self.cap.read()
+            image=cv2.resize(image,(self.imW,self.imH))
 
             #Grab time for timestamp later
             imTic=time.time()-self.startTic
 
             #Run the dector program, and save the resulting image and data
             frame,cvData = self.detector.detect(image) #Run the image through the detector program
-
 
             #If adding a data label, create a small image to be added to the bottom
             if self.addImageLabel:
@@ -156,16 +159,18 @@ class ANDRRFramework:
 
                 if self.serIn!=None and not dataInQueue.empty():
                     GPS=dataInQueue.get()
+                    self.GPSTic=time.time()
                     GPStext="GPS: " + str(GPS.lat) + "," + str(GPS.lon)
                 else:
-                    GPStext="GPS: No connection"
+                    if (time.time()-self.GPSTic)>self.GPSTimeOut:
+                        GPStext="GPS: No connection"
 
                 #Create blank label
                 label=labelinit.copy()
 
                 # Add text to the boarder
                 cv2.putText(label, timeStamp, (70,20), self.font, self.fontScale, self.color, self.thickness, cv2.LINE_AA)
-                cv2.putText(label, IDtext, (420,20), self.font, self.fontScale, self.color, self.thickness, cv2.LINE_AA)
+                cv2.putText(label, IDtext, (620,20), self.font, self.fontScale, self.color, self.thickness, cv2.LINE_AA)
                 cv2.putText(label, GPStext, (220,20), self.font, self.fontScale, self.color, self.thickness, cv2.LINE_AA)
 
                 #Add the boarder to the image
@@ -188,13 +193,7 @@ class ANDRRFramework:
                 cv2.imshow('radioImage', frame)
                 if cv2.waitKey(1) == ord('q'):
                     break 
-            #loopFPS=1/(time.time()-tic1)
-            #txtfile=self.folderName+"runtimeData.txt"
-            #with open(txtfile, 'a',newline='') as f:
-                #f.write(str(loopFPS)+'\n')
 
-            #if ID>200:
-                #quit()
 
     def storeImage(self, queue):
         while True:

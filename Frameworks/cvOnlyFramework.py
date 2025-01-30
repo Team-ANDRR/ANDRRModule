@@ -15,27 +15,31 @@ class ANDRRFramework:
     '''Framework for displaying CV detections over RCA'''
     def __init__(self):
         
+        self.CVModel='edgetpu.tflite' #File name of cv model
+        self.useTPU=True #Set to true if using ML accelerator
         self.DEBUG=True #If true, the display window isn't full screen to help with reading the terminal
-        self.imW=800 #Image resolution width
-        self.imH=450 #Image resolution height
+        self.imW=800 #Display image resolution width
+        self.imH=450 #Display image resolution height
+        self.CamW=800 #Camera resolution width
+        self.CamH=600 #Camera resolution height
         self.folderName="radioImages0/" #Stores what folder data is saved to
-        self.detector=detector.CVProcessor(self.imW,self.imH)
+        self.cameraIndex=1
+
+        self.cap=cv2.VideoCapture(self.cameraIndex, cv2.CAP_V4L2)
+        ret = self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+        ret = self.cap.set(3,self.CamW)
+        ret = self.cap.set(4,self.CamH)
+
+        self.detector=detector.CVProcessor(self.CVModel,self.useTPU,self.imW,self.imH)
 
     def processImage(self): #Run an image through the CV program, add the relevant data, save the image
-        ID=0
-        loopFPS=0
-        cap=cv2.VideoCapture(0)
-        ret = cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
-        ret = cap.set(3,self.imW)
-        ret = cap.set(4,self.imH)
-
         while True:
-            tic1=time.time()
-            ret, image=cap.read()
+            ret, image=self.cap.read()
+            image=cv2.resize(image,(self.imW,self.imH))
+
             if ret:
                 #Run the dector program, and save the resulting image and data
                 frame,cvData = self.detector.detect(image) #Run the image through the detector program
-
                 #Display image
                 #If not using debug mode, set image to full screen 
                 if not ANDRR.DEBUG:

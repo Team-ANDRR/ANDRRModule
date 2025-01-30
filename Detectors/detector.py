@@ -13,16 +13,12 @@ import importlib.util
 
 class CVProcessor:
     
-    def __init__(self, imW, imH):
+    def __init__(self, GRAPH_NAME,use_TPU,imW, imH):
 
         #threshold as float, resolution as string, edgetpu as bool
-        GRAPH_NAME = 'detect.tflite' #'1.tflite'
-        threshold=0.5
-        edgetpu=True
-        self.min_conf_threshold = threshold
+        self.min_conf_threshold = 0.5
         self.imW=imW
         self.imH=imH
-        use_TPU = edgetpu
  
         # Import TensorFlow libraries
         # If tflite_runtime is installed, import interpreter from tflite_runtime, else import from regular tensorflow
@@ -35,13 +31,7 @@ class CVProcessor:
         else:
             from tensorflow.lite.python.interpreter import Interpreter
             if use_TPU:
-                from tensorflow.lite.python.interpreter import load_delegate
-
-        # If using Edge TPU, assign filename for Edge TPU model
-        if use_TPU:
-            # If user has specified the name of the .tflite file, use that name, otherwise use default 'edgetpu.tflite'
-            if (GRAPH_NAME == 'detect.tflite'):
-                GRAPH_NAME = 'edgetpu.tflite'       
+                from tensorflow.lite.python.interpreter import load_delegate      
 
         # Get path to current working directory
         CWD_PATH = os.getcwd()
