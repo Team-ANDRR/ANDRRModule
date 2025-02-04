@@ -47,11 +47,12 @@ rm Python-3.9.0.tar.xz
 
 5.a Create ANDRRModule folder
 ```
+mkdir ANDRRModule
 cd ANDRRModule
 ```
 5.b Create processedImages0 folder
 ```
-cd processedImages0
+mkdir radioImages0
 ```
 
 6. Create virtual env
