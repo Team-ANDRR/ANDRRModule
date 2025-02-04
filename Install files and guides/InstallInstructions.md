@@ -79,7 +79,7 @@ nano launcher.sh
 #launcher.sh
 
 cd /home/andrr/tflite1/dataFramework
-source tflite1-env/bin/activate
+source ANDRRModuleEnv/bin/activate
 python <program to run>
 ```
 8.b Add launcher to chmod
@@ -90,7 +90,7 @@ sudo chmod 755 launcher.sh
 ```
 sudo nano /etc/xdg/lxsession/LXDE-pi/autostart 
 ```
-At the bottom of the file, add “lxterminal -e bash <path to sh script>”
+At the bottom of the file, add ```lxterminal -e bash <path to sh script>```
 
 
 9. Setup analog output:
