@@ -43,6 +43,15 @@ sudo rm -r Python-3.9.0
 rm Python-3.9.0.tar.xz
 . ~/.bashrc
 ```
+4.e Add python3.9 to the python alternatives list
+```
+sudo update-alternatives --install /usr/bin/python python /usr/bin/python3.9 1
+```
+4.f Make python3.9 default
+```
+sudo update-alternatives --config python
+```
+Enter the selection number for python3.9
 
 5. Setup folder for file management:
 
