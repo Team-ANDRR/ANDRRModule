@@ -9,8 +9,9 @@ sudo apt-get dist-upgrade
 2. Install lite desktop:
 ```
 sudo apt install xserver-xorg raspberrypi-ui-mods
-sudo raspi-config (set boot option to automatically sign in to desktop)
+sudo raspi-config
 ```
+Set boot option to automatically sign in to desktop
 
 3. Install pip3:
 ```
