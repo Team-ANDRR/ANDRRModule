@@ -75,7 +75,9 @@ class ANDRRFramework:
         #Initialize mavlink
         try:
             self.serIn = mavutil.mavlink_connection(self.serIn, baud=921600) # Adjust the port and baud rate if necessary
-            self.serIn.wait_heartbeat()
+            ret=self.serIn.wait_heartbeat(timeout=10)
+            if ret==None:
+                raise
             print("CONNECTED TO MAVLINK")
             self.serIn.mav.request_data_stream_send(self.serIn.target_system, self.serIn.target_component, mavutil.mavlink.MAV_DATA_STREAM_ALL, 10, 1) # Request all data streams at 10Hz
         except:
@@ -134,6 +136,7 @@ class ANDRRFramework:
         #Create a data boarder
         labelinit = np.zeros((30,self.imW,3), np.uint8)
         labelinit[3:,:]=(255,255,255)
+        GPS=None
         while True:
 
             ret, image=self.cap.read()
@@ -164,6 +167,7 @@ class ANDRRFramework:
                 else:
                     if (time.time()-self.GPSTic)>self.GPSTimeOut:
                         GPStext="GPS: No connection"
+                        GPS=None
 
                 #Create blank label
                 label=labelinit.copy()
