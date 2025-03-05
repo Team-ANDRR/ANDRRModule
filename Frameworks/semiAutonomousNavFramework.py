@@ -136,18 +136,26 @@ class ANDRRFramework:
         #Create a data boarder
         labelinit = np.zeros((30,self.imW,3), np.uint8)
         labelinit[3:,:]=(255,255,255)
-        GPS=None
         while True:
 
             ret, image=self.cap.read()
             image=cv2.resize(image,(self.imW,self.imH))
 
             #Grab time for timestamp later
-            imTic=time.time()-self.startTic
-
+            imTic=time.time()-self.startTi
+            
             #Run the dector program, and save the resulting image and data
             frame,cvData = self.detector.detect(image) #Run the image through the detector program
 
+            if self.serIn!=None and not dataInQueue.empty():
+                GPS=dataInQueue.get()
+                self.GPSTic=time.time()
+                GPStext="GPS: " + str(GPS.lat) + "," + str(GPS.lon)
+            else:
+                if (time.time()-self.GPSTic)>self.GPSTimeOut:
+                    GPStext="GPS: No connection"
+                    GPS=None
+            
             #If adding a data label, create a small image to be added to the bottom
             if self.addImageLabel:
 
@@ -159,15 +167,6 @@ class ANDRRFramework:
                 seconds=captureTime%60
                 minutes=int((captureTime-seconds)/60)
                 timeStamp = "Time: " + str(minutes) + ":" + str(seconds).zfill(2)
-
-                if self.serIn!=None and not dataInQueue.empty():
-                    GPS=dataInQueue.get()
-                    self.GPSTic=time.time()
-                    GPStext="GPS: " + str(GPS.lat) + "," + str(GPS.lon)
-                else:
-                    if (time.time()-self.GPSTic)>self.GPSTimeOut:
-                        GPStext="GPS: No connection"
-                        GPS=None
 
                 #Create blank label
                 label=labelinit.copy()
