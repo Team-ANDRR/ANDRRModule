@@ -11,7 +11,7 @@ sudo apt-get dist-upgrade
 sudo apt install xserver-xorg raspberrypi-ui-mods
 sudo raspi-config
 ```
-Set boot option to automatically sign in to desktop
+Set boot option to automatically sign in to desktop (under system options) and turn off sleep mode (under display options)
 
 3. Install pip3:
 ```
