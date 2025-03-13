@@ -60,7 +60,7 @@ Enter the selection number for python3.9
 mkdir ANDRRModule
 cd ANDRRModule
 ```
-#### 5.b Create processedImages0 folder
+#### 5.b Create radioImages0 folder
 ```
 mkdir radioImages0
 ```
@@ -88,7 +88,7 @@ nano launcher.sh
 #!/bin/bash
 #launcher.sh
 
-cd /home/andrr/tflite1/dataFramework
+cd /home/andrr/ANDRRModule
 source ANDRRModuleEnv/bin/activate
 python <program to run>
 ```
