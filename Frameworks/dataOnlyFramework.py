@@ -95,7 +95,7 @@ class ANDRRFramework:
         pass
 
 
-    def __createFolder(self): #Determines what folders exist and creates a new one for the flight, updates folderName
+    def createFolder(self): #Determines what folders exist and creates a new one for the flight, updates folderName
         i=0
         directoryFound=True
         while directoryFound==True:
