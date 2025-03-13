@@ -92,6 +92,8 @@ cd /home/andrr/tflite1/dataFramework
 source ANDRRModuleEnv/bin/activate
 python <program to run>
 ```
+To make swapping the program you intend to use easier, have this script run a file called ANDRRModule.py. You then rename the file you wish to run to ANDRRModule.py without having to redo the script.
+
 #### 8.b Add launcher to chmod
 ```
 sudo chmod 755 launcher.sh
