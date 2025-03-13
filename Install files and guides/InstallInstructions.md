@@ -11,7 +11,7 @@ sudo apt-get dist-upgrade
 sudo apt install xserver-xorg raspberrypi-ui-mods
 sudo raspi-config
 ```
-Set boot option to automatically sign in to desktop (under system options) and turn off sleep mode (under display options)
+Set boot option to automatically sign in to desktop (under system options)
 
 ## 3. Install pip3:
 ```
@@ -102,7 +102,12 @@ sudo chmod 755 launcher.sh
 ```
 sudo nano /etc/xdg/lxsession/LXDE-pi/autostart 
 ```
-At the bottom of the file, add ```lxterminal -e bash <path to sh script>```
+At the bottom of the file, add 
+```
+@lxterminal -e bash <path to sh script>
+@xset -dpms
+@xset s off
+```
 
 
 ## 9. Setup analog output:
