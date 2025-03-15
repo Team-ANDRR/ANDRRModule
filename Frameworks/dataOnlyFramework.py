@@ -39,7 +39,7 @@ class ANDRRFramework:
         ret = self.cap.set(3,self.CamW)
         ret = self.cap.set(4,self.CamH)
 
-        self.detector=detector.CVProcessor(self.CVModel,self.useTPU,self.imW,self.imH)
+        self.detector=detector.CVProcessor(self.CVModel,self.useTPU,self.CamW,self.CamH)
 
         #Text parameters for the data label
         self.font = cv2.FONT_HERSHEY_SIMPLEX
@@ -135,13 +135,13 @@ class ANDRRFramework:
         labelinit[3:,:]=(255,255,255)
         while True:
             ret, image=self.cap.read()
-            image=cv2.resize(image,(self.imW,self.imH))
 
             #Grab time for timestamp later
             imTic=time.time()-self.startTic
 
             #Run the dector program, and save the resulting image and data
             frame,cvData = self.detector.detect(image) #Run the image through the detector program
+            frame=cv2.resize(frame,(self.imW,self.imH))
 
             if self.serIn!=None and not dataInQueue.empty():
                 serData=dataInQueue.get()
