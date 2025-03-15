@@ -30,16 +30,17 @@ class ANDRRFramework:
         ret = self.cap.set(3,self.CamW)
         ret = self.cap.set(4,self.CamH)
 
-        self.detector=detector.CVProcessor(self.CVModel,self.useTPU,self.imW,self.imH)
+        self.detector=detector.CVProcessor(self.CVModel,self.useTPU,self.CamW,self.CamH)
 
     def processImage(self): #Run an image through the CV program, add the relevant data, save the image
         while True:
             ret, image=self.cap.read()
-            image=cv2.resize(image,(self.imW,self.imH))
 
             if ret:
                 #Run the dector program, and save the resulting image and data
                 frame,cvData = self.detector.detect(image) #Run the image through the detector program
+                frame=cv2.resize(frame,(self.imW,self.imH))
+                
                 #Display image
                 #If not using debug mode, set image to full screen 
                 if not ANDRR.DEBUG:
